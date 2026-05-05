@@ -138,14 +138,6 @@ lipo -create "${LIBOPENSSL_SLICES[@]}" -output "${OPENSSL_UNIVERSAL_ROOT}/lib/li
 rsync -a "${INSTALL_ROOT}/openssl-${ARCHS[0]}/include/openssl" "${OPENSSL_UNIVERSAL_ROOT}/include/"
 rsync -a "${OPENSSL_UNIVERSAL_ROOT}/include/openssl" "$OPENSSL_HEADERS_ROOT/"
 
-cat > "${OPENSSL_HEADERS_ROOT}/module.modulemap" <<'MODULEMAP'
-module OpenSSL [system] {
-  umbrella "openssl"
-  export *
-  module * { export * }
-}
-MODULEMAP
-
 xcodebuild -create-xcframework \
   -library "${OPENSSL_UNIVERSAL_ROOT}/lib/libopenssl.a" \
   -headers "$OPENSSL_HEADERS_ROOT" \

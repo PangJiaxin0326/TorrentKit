@@ -28,11 +28,12 @@ OpenSSL.xcframework/
   macos-arm64_x86_64/
     Headers/
       openssl/
-      module.modulemap
     libopenssl.a
 ```
 
-The package manifest exposes these as SwiftPM binary targets named `libtorrent` and `OpenSSL`, and `QBTLibtorrentCBridge` depends on both. The bridge also links Apple's `SystemConfiguration` framework for libtorrent's macOS network-change notifications; this is an SDK framework, not a vendored C++ library.
+The package manifest exposes these as SwiftPM binary targets named `libtorrent` and `OpenSSL`, and `QBTLibtorrentCBridge` depends on both. OpenSSL intentionally does not ship a root `Headers/module.modulemap`: Xcode copies binary-target headers into a shared products include directory, and a second root module map collides with libtorrent's module map during `ProcessXCFramework`. The bridge consumes OpenSSL through C++ headers and link symbols, not as a directly imported Swift module.
+
+The bridge also links Apple's `SystemConfiguration` framework for libtorrent's macOS network-change notifications; this is an SDK framework, not a vendored C++ library.
 
 ## Source Provenance
 
@@ -50,7 +51,7 @@ Run this from the package directory:
 Scripts/build-libtorrent-xcframework.sh
 ```
 
-The script downloads release archives into `.build/libtorrent-xcframework/archives`, builds static macOS slices, copies headers, writes module maps, and creates `Vendor/OpenSSL.xcframework` plus `Vendor/libtorrent.xcframework`.
+The script downloads release archives into `.build/libtorrent-xcframework/archives`, builds static macOS slices, copies headers, writes libtorrent's module map, and creates `Vendor/OpenSSL.xcframework` plus `Vendor/libtorrent.xcframework`.
 
 The current bridge builds OpenSSL from the GitHub release archive and points libtorrent's CMake package discovery at that vendored install. libtorrent protocol encryption is explicitly enabled so the archive is built without `TORRENT_DISABLE_ENCRYPTION`.
 
