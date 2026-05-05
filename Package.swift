@@ -7,13 +7,7 @@ let packageRoot = #filePath
     .dropLast()
     .joined(separator: "/")
 
-let libtorrentInstallRoot = "/" + packageRoot + "/.build/torrentkit-libtorrent/install"
-
-// Native source dependencies are fetched by Scripts/bootstrap-libtorrent.sh because
-// arvidn/libtorrent is not a SwiftPM package and has no Package.swift manifest.
-let libtorrentGitURL = "https://github.com/arvidn/libtorrent.git"
-let boostGitURL = "https://github.com/boostorg/boost.git"
-_ = (libtorrentGitURL, boostGitURL)
+let libtorrentXCFrameworkHeaders = "/" + packageRoot + "/Vendor/libtorrent.xcframework/macos-arm64_x86_64/Headers"
 
 let package = Package(
     name: "TorrentKit",
@@ -39,27 +33,31 @@ let package = Package(
             name: "TorrentKitLibtorrent",
             dependencies: [
                 "TorrentKit",
+                "libtorrent",
                 "QBTLibtorrentCBridge"
             ],
             path: "Sources/TorrentKitLibtorrent"
         ),
+        .binaryTarget(
+            name: "libtorrent",
+            path: "Vendor/libtorrent.xcframework"
+        ),
         .target(
             name: "QBTLibtorrentCBridge",
+            dependencies: [
+                "libtorrent"
+            ],
             path: "Sources/QBTLibtorrentCBridge",
             publicHeadersPath: "include",
             cxxSettings: [
                 .unsafeFlags([
-                    "-I", "\(libtorrentInstallRoot)/include",
+                    "-I", libtorrentXCFrameworkHeaders,
                     "-DBOOST_SYSTEM_NO_DEPRECATED",
-                    "-DBOOST_ASIO_HAS_STD_CHRONO",
-                    "-DTORRENT_LINKING_SHARED"
+                    "-DBOOST_ASIO_HAS_STD_CHRONO"
                 ])
             ],
             linkerSettings: [
-                .unsafeFlags([
-                    "-L", "\(libtorrentInstallRoot)/lib",
-                    "-ltorrent-rasterbar"
-                ])
+                .linkedFramework("SystemConfiguration")
             ]
         ),
         .testTarget(
