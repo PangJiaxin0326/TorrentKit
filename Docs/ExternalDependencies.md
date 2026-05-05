@@ -1,32 +1,24 @@
 # TorrentKit External Dependencies
 
-TorrentKit currently uses the original system-level native dependency model. It does not vendor libtorrent, OpenSSL, Boost, or any XCFramework artifacts.
+TorrentKit owns the native torrent-engine dependency chain. The host app should not point at `/opt/homebrew`, a developer machine install, or any other preinstalled libtorrent copy.
 
-## System Dependencies
+## Source Dependencies
 
-The default paths assume Homebrew on Apple Silicon:
+- libtorrent: `https://github.com/arvidn/libtorrent.git`
+  - Default ref: `RC_2_0`
+  - Purpose: native BitTorrent session, torrent handle, metadata, alert, and status implementation.
+- Boost: `https://github.com/boostorg/boost.git`
+  - Default ref: `boost-1.84.0`
+  - Purpose: libtorrent's C++ support library dependency, including Boost.Asio and related headers/libraries.
 
-```text
-/opt/homebrew/opt/libtorrent-rasterbar
-/opt/homebrew/include
-/opt/homebrew/lib
-```
+## Bootstrap
 
-`Package.swift` links `QBTLibtorrentCBridge` against:
-
-- `libtorrent-rasterbar`
-- `ssl`
-- `crypto`
-
-It also mirrors the compile definitions exported by the installed `libtorrent-rasterbar.pc`, including OpenSSL support.
-
-## Overrides
-
-Set these environment variables before resolving/building the package when using a different system install:
+Run this from the `TorrentKit` package directory before building the native product:
 
 ```sh
-export HOMEBREW_PREFIX=/opt/homebrew
-export LIBTORRENT_ROOT=/opt/homebrew/opt/libtorrent-rasterbar
+Scripts/bootstrap-libtorrent.sh
 ```
 
-`HOMEBREW_PREFIX` supplies the shared system include and library roots. `LIBTORRENT_ROOT` supplies libtorrent's own include and library roots.
+The script clones the GitHub sources into `.build/torrentkit-libtorrent/src`, builds libtorrent with CMake, and installs headers/libraries into `.build/torrentkit-libtorrent/install`. `Package.swift` points the C bridge target at that package-owned install root.
+
+The initial bridge disables libtorrent encryption during bootstrap so TorrentKit does not introduce an OpenSSL source dependency until TLS torrent behavior is migrated. Re-enable that deliberately when the bridge grows SSL/TLS support, and add the OpenSSL GitHub source URL here at the same time.

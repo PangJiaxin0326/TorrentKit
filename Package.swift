@@ -2,10 +2,18 @@
 
 import PackageDescription
 
-let homebrewPrefix = Context.environment["HOMEBREW_PREFIX"] ?? "/opt/homebrew"
-let libtorrentSystemRoot = Context.environment["LIBTORRENT_ROOT"] ?? "\(homebrewPrefix)/opt/libtorrent-rasterbar"
-let systemIncludeRoot = "\(homebrewPrefix)/include"
-let systemLibraryRoot = "\(homebrewPrefix)/lib"
+let packageRoot = #filePath
+    .split(separator: "/")
+    .dropLast()
+    .joined(separator: "/")
+
+let libtorrentInstallRoot = "/" + packageRoot + "/.build/torrentkit-libtorrent/install"
+
+// Native source dependencies are fetched by Scripts/bootstrap-libtorrent.sh because
+// arvidn/libtorrent is not a SwiftPM package and has no Package.swift manifest.
+let libtorrentGitURL = "https://github.com/arvidn/libtorrent.git"
+let boostGitURL = "https://github.com/boostorg/boost.git"
+_ = (libtorrentGitURL, boostGitURL)
 
 let package = Package(
     name: "TorrentKit",
@@ -41,32 +49,17 @@ let package = Package(
             publicHeadersPath: "include",
             cxxSettings: [
                 .unsafeFlags([
-                    "-I", "\(libtorrentSystemRoot)/include",
-                    "-I", systemIncludeRoot,
-                    "-DBOOST_ASIO_ENABLE_CANCELIO",
-                    "-DBOOST_ASIO_NO_DEPRECATED",
+                    "-I", "\(libtorrentInstallRoot)/include",
                     "-DBOOST_SYSTEM_NO_DEPRECATED",
                     "-DBOOST_ASIO_HAS_STD_CHRONO",
-                    "-DTORRENT_LINKING_SHARED",
-                    "-DTORRENT_USE_OPENSSL",
-                    "-DTORRENT_USE_LIBCRYPTO",
-                    "-DTORRENT_SSL_PEERS",
-                    "-DOPENSSL_NO_SSL2",
-                    "-DOPENSSL_NO_SSL3",
-                    "-DOPENSSL_NO_TLS1",
-                    "-DOPENSSL_NO_TLS1_1",
-                    "-DOPENSSL_NO_DTLS1"
+                    "-DTORRENT_LINKING_SHARED"
                 ])
             ],
             linkerSettings: [
                 .unsafeFlags([
-                    "-L", "\(libtorrentSystemRoot)/lib",
-                    "-L", systemLibraryRoot,
-                    "-ltorrent-rasterbar",
-                    "-lssl",
-                    "-lcrypto"
-                ]),
-                .linkedFramework("SystemConfiguration")
+                    "-L", "\(libtorrentInstallRoot)/lib",
+                    "-ltorrent-rasterbar"
+                ])
             ]
         ),
         .testTarget(
