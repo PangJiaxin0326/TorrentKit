@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 @testable import TorrentKit
@@ -13,15 +14,11 @@ struct LibtorrentDownloaderTests {
         let torrentFile = root.appending(path: "limited.torrent", directoryHint: .notDirectory)
         try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
         try Data("future torrent connection cap".utf8).write(to: source)
-        _ = try TorrentCreatorService().create(
-            TorrentCreatorRequest(
-                sourceFiles: [source],
-                announceURLs: [URL(string: "https://tracker.example/announce")!],
-                webSeedURLs: [],
-                pieceSize: 16,
-                isPrivate: false,
-                outputURL: torrentFile
-            )
+        try writeSingleFileTorrent(
+            source: source,
+            announceURL: URL(string: "https://tracker.example/announce")!,
+            pieceSize: 16,
+            outputURL: torrentFile
         )
 
         let downloader = LibtorrentDownloader()
@@ -66,5 +63,80 @@ struct LibtorrentDownloaderTests {
         #expect(FileManager.default.fileExists(atPath: downloadedPath))
 
         try? FileManager.default.removeItem(at: root)
+    }
+}
+
+private func writeSingleFileTorrent(
+    source: URL,
+    announceURL: URL,
+    pieceSize: Int,
+    outputURL: URL
+) throws {
+    let sourceData = try Data(contentsOf: source)
+    let pieces = torrentPieces(from: sourceData, pieceSize: pieceSize)
+    let torrent = TorrentBValue.dict([
+        "announce": .string(announceURL.absoluteString),
+        "created by": .string("TorrentKitTests"),
+        "info": .dict([
+            "length": .int(sourceData.count),
+            "name": .string(source.lastPathComponent),
+            "piece length": .int(pieceSize),
+            "pieces": .bytes(pieces)
+        ])
+    ])
+
+    try torrent.encoded().write(to: outputURL, options: .atomic)
+}
+
+private func torrentPieces(from data: Data, pieceSize: Int) -> Data {
+    var pieces = Data()
+    var offset = data.startIndex
+
+    while offset < data.endIndex {
+        let end = min(offset + pieceSize, data.endIndex)
+        pieces.append(Data(Insecure.SHA1.hash(data: data[offset..<end])))
+        offset = end
+    }
+
+    return pieces
+}
+
+private enum TorrentBValue {
+    case int(Int)
+    case string(String)
+    case bytes(Data)
+    case dict([String: TorrentBValue])
+
+    func encoded() -> Data {
+        var data = Data()
+        appendEncoded(to: &data)
+        return data
+    }
+
+    private func appendEncoded(to data: inout Data) {
+        switch self {
+        case let .int(value):
+            data.appendUTF8("i\(value)e")
+        case let .string(value):
+            let bytes = Data(value.utf8)
+            data.appendUTF8("\(bytes.count):")
+            data.append(bytes)
+        case let .bytes(bytes):
+            data.appendUTF8("\(bytes.count):")
+            data.append(bytes)
+        case let .dict(values):
+            data.appendUTF8("d")
+            for key in values.keys.sorted() {
+                TorrentBValue.string(key).appendEncoded(to: &data)
+                values[key]?.appendEncoded(to: &data)
+            }
+            data.appendUTF8("e")
+        }
+    }
+}
+
+private extension Data {
+    mutating func appendUTF8(_ value: String) {
+        append(contentsOf: value.utf8)
     }
 }

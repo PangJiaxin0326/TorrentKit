@@ -622,7 +622,37 @@ struct LibtorrentDownloader: Sendable {
     }
 
     private static func scheduleIsActive(_ schedule: SpeedSchedulerPreferences, date: Date = Date(), calendar: Calendar = .current) -> Bool {
-        SpeedSchedulerEvaluator(calendar: calendar).isAlternativeLimitTime(scheduler: schedule, at: date)
+        guard schedule.isEnabled else {
+            return false
+        }
+
+        let start = schedule.startMinuteOfDay
+        let end = schedule.endMinuteOfDay
+        guard (0..<1_440).contains(start),
+              (0..<1_440).contains(end),
+              start != end else {
+            return false
+        }
+
+        let components = calendar.dateComponents([.hour, .minute, .weekday], from: date)
+        let minuteOfDay = (components.hour ?? 0) * 60 + (components.minute ?? 0)
+        let weekday = components.weekday ?? 1
+
+        var rangeStart = start
+        var rangeEnd = end
+        var isInverted = false
+
+        if rangeStart > rangeEnd {
+            swap(&rangeStart, &rangeEnd)
+            isInverted = true
+        }
+
+        if (rangeStart...rangeEnd).contains(minuteOfDay),
+           schedule.days.contains(weekday: weekday) {
+            isInverted.toggle()
+        }
+
+        return isInverted
     }
 
     private static func bridgeProxyKind(from settings: TorrentProxySettings) -> TorrentProxyKind {

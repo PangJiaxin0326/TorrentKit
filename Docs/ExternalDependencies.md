@@ -1,24 +1,22 @@
 # TorrentKit External Dependencies
 
-TorrentKit owns the native torrent-engine dependency chain. The host app should not point at `/opt/homebrew`, a developer machine install, or any other preinstalled libtorrent copy.
+TorrentKit owns the native torrent-engine dependency boundary. This rollback version intentionally relies on a system libtorrent-rasterbar install instead of vendored XCFrameworks.
 
-## Source Dependencies
+## System Dependencies
 
-- libtorrent: `https://github.com/arvidn/libtorrent.git`
-  - Default ref: `RC_2_0`
-  - Purpose: native BitTorrent session, torrent handle, metadata, alert, and status implementation.
-- Boost: `https://github.com/boostorg/boost.git`
-  - Default ref: `boost-1.84.0`
-  - Purpose: libtorrent's C++ support library dependency, including Boost.Asio and related headers/libraries.
+The pre-XCFramework package links against a system-level libtorrent-rasterbar install.
 
-## Bootstrap
+Default locations:
 
-Run this from the `TorrentKit` package directory before building the native product:
+- libtorrent: `/opt/homebrew/opt/libtorrent-rasterbar`
+- headers shared by Homebrew dependencies: `/opt/homebrew/include`
+- libraries shared by Homebrew dependencies: `/opt/homebrew/lib`
+
+Override locations with:
 
 ```sh
-Scripts/bootstrap-libtorrent.sh
+HOMEBREW_PREFIX=/usr/local swift build
+LIBTORRENT_ROOT=/path/to/libtorrent-rasterbar swift build
 ```
 
-The script clones the GitHub sources into `.build/torrentkit-libtorrent/src`, builds libtorrent with CMake, and installs headers/libraries into `.build/torrentkit-libtorrent/install`. `Package.swift` points the C bridge target at that package-owned install root.
-
-The initial bridge disables libtorrent encryption during bootstrap so TorrentKit does not introduce an OpenSSL source dependency until TLS torrent behavior is migrated. Re-enable that deliberately when the bridge grows SSL/TLS support, and add the OpenSSL GitHub source URL here at the same time.
+The bridge links `torrent-rasterbar`, `ssl`, and `crypto`, plus the macOS `SystemConfiguration` framework used by Homebrew libtorrent builds.
