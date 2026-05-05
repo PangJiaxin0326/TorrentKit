@@ -1,3 +1,0 @@
-Vendor/libtorrent.xcframework/** -diff
-Vendor/OpenSSL.xcframework/** -diff
-*.a binary

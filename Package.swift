@@ -2,13 +2,10 @@
 
 import PackageDescription
 
-let packageRoot = #filePath
-    .split(separator: "/")
-    .dropLast()
-    .joined(separator: "/")
-
-let libtorrentXCFrameworkHeaders = "/" + packageRoot + "/Vendor/libtorrent.xcframework/macos-arm64_x86_64/Headers"
-let openSSLXCFrameworkHeaders = "/" + packageRoot + "/Vendor/OpenSSL.xcframework/macos-arm64_x86_64/Headers"
+let homebrewPrefix = Context.environment["HOMEBREW_PREFIX"] ?? "/opt/homebrew"
+let libtorrentSystemRoot = Context.environment["LIBTORRENT_ROOT"] ?? "\(homebrewPrefix)/opt/libtorrent-rasterbar"
+let systemIncludeRoot = "\(homebrewPrefix)/include"
+let systemLibraryRoot = "\(homebrewPrefix)/lib"
 
 let package = Package(
     name: "TorrentKit",
@@ -34,36 +31,23 @@ let package = Package(
             name: "TorrentKitLibtorrent",
             dependencies: [
                 "TorrentKit",
-                "libtorrent",
-                "OpenSSL",
                 "QBTLibtorrentCBridge"
             ],
             path: "Sources/TorrentKitLibtorrent"
         ),
-        .binaryTarget(
-            name: "libtorrent",
-            path: "Vendor/libtorrent.xcframework"
-        ),
-        .binaryTarget(
-            name: "OpenSSL",
-            path: "Vendor/OpenSSL.xcframework"
-        ),
         .target(
             name: "QBTLibtorrentCBridge",
-            dependencies: [
-                "libtorrent",
-                "OpenSSL"
-            ],
             path: "Sources/QBTLibtorrentCBridge",
             publicHeadersPath: "include",
             cxxSettings: [
                 .unsafeFlags([
-                    "-I", libtorrentXCFrameworkHeaders,
-                    "-I", openSSLXCFrameworkHeaders,
+                    "-I", "\(libtorrentSystemRoot)/include",
+                    "-I", systemIncludeRoot,
                     "-DBOOST_ASIO_ENABLE_CANCELIO",
                     "-DBOOST_ASIO_NO_DEPRECATED",
                     "-DBOOST_SYSTEM_NO_DEPRECATED",
                     "-DBOOST_ASIO_HAS_STD_CHRONO",
+                    "-DTORRENT_LINKING_SHARED",
                     "-DTORRENT_USE_OPENSSL",
                     "-DTORRENT_USE_LIBCRYPTO",
                     "-DTORRENT_SSL_PEERS",
@@ -75,6 +59,13 @@ let package = Package(
                 ])
             ],
             linkerSettings: [
+                .unsafeFlags([
+                    "-L", "\(libtorrentSystemRoot)/lib",
+                    "-L", systemLibraryRoot,
+                    "-ltorrent-rasterbar",
+                    "-lssl",
+                    "-lcrypto"
+                ]),
                 .linkedFramework("SystemConfiguration")
             ]
         ),

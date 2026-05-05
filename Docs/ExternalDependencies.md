@@ -1,58 +1,32 @@
 # TorrentKit External Dependencies
 
-TorrentKit owns the native torrent-engine dependency chain. Consumers should not point at `/opt/homebrew`, a developer machine install, or any other preinstalled libtorrent copy.
+TorrentKit currently uses the original system-level native dependency model. It does not vendor libtorrent, OpenSSL, Boost, or any XCFramework artifacts.
 
-## Binary Dependency
+## System Dependencies
 
-TorrentKit vendors libtorrent and OpenSSL as:
-
-```text
-Vendor/libtorrent.xcframework
-Vendor/OpenSSL.xcframework
-```
-
-The XCFramework layout is:
+The default paths assume Homebrew on Apple Silicon:
 
 ```text
-libtorrent.xcframework/
-  Info.plist
-  macos-arm64_x86_64/
-    Headers/
-      libtorrent/
-      boost/
-      module.modulemap
-    libtorrent-rasterbar.a
-
-OpenSSL.xcframework/
-  Info.plist
-  macos-arm64_x86_64/
-    Headers/
-      openssl/
-    libopenssl.a
+/opt/homebrew/opt/libtorrent-rasterbar
+/opt/homebrew/include
+/opt/homebrew/lib
 ```
 
-The package manifest exposes these as SwiftPM binary targets named `libtorrent` and `OpenSSL`, and `QBTLibtorrentCBridge` depends on both. OpenSSL intentionally does not ship a root `Headers/module.modulemap`: Xcode copies binary-target headers into a shared products include directory, and a second root module map collides with libtorrent's module map during `ProcessXCFramework`. The bridge consumes OpenSSL through C++ headers and link symbols, not as a directly imported Swift module.
+`Package.swift` links `QBTLibtorrentCBridge` against:
 
-The bridge also links Apple's `SystemConfiguration` framework for libtorrent's macOS network-change notifications; this is an SDK framework, not a vendored C++ library.
+- `libtorrent-rasterbar`
+- `ssl`
+- `crypto`
 
-## Source Provenance
+It also mirrors the compile definitions exported by the installed `libtorrent-rasterbar.pc`, including OpenSSL support.
 
-The checked-in XCFramework is rebuilt from GitHub source archives, not from a system library and not by cloning the full libtorrent repository:
+## Overrides
 
-- libtorrent archive: `https://github.com/arvidn/libtorrent/releases/download/v2.0.12/libtorrent-rasterbar-2.0.12.tar.gz`
-- Boost archive: `https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.gz`
-- OpenSSL archive: `https://github.com/openssl/openssl/releases/download/openssl-3.6.2/openssl-3.6.2.tar.gz`
-
-## Rebuild
-
-Run this from the package directory:
+Set these environment variables before resolving/building the package when using a different system install:
 
 ```sh
-Scripts/build-libtorrent-xcframework.sh
+export HOMEBREW_PREFIX=/opt/homebrew
+export LIBTORRENT_ROOT=/opt/homebrew/opt/libtorrent-rasterbar
 ```
 
-The script downloads release archives into `.build/libtorrent-xcframework/archives`, builds static macOS slices, copies headers, writes libtorrent's module map, and creates `Vendor/OpenSSL.xcframework` plus `Vendor/libtorrent.xcframework`.
-
-The current bridge builds OpenSSL from the GitHub release archive and points libtorrent's CMake package discovery at that vendored install. libtorrent protocol encryption is explicitly enabled so the archive is built without `TORRENT_DISABLE_ENCRYPTION`.
-
-GnuTLS and Libgcrypt discovery are no longer force-disabled; they remain fallback discovery paths if the build is explicitly configured away from OpenSSL. If those fallbacks are adopted later, package their dependency chain as vendored binary artifacts sourced from GitHub URLs too.
+`HOMEBREW_PREFIX` supplies the shared system include and library roots. `LIBTORRENT_ROOT` supplies libtorrent's own include and library roots.
